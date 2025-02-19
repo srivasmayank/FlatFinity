@@ -2,8 +2,193 @@ import React, { useEffect } from "react";
 import Phaser from "phaser";
 import { io } from "socket.io-client";
 
-// Connect to the Socket.io server
+// Create a global socket connection
 const socket = io("http://localhost:3000");
+
+class WaitingRoom extends Phaser.Scene {
+  constructor() {
+    super("waitingRoom");
+  }
+
+  create() {
+    // Background
+    this.add
+      .rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x1e1e1e)
+      .setOrigin(0, 0);
+
+    // Title
+    this.add
+      .text(this.cameras.main.centerX, 40, "Multiplayer Phaser Game", {
+        fontSize: "40px",
+        fill: "#ffffff",
+        fontFamily: "Arial",
+        fontStyle: "bold"
+      })
+      .setOrigin(0.5);
+
+    // --- Create Room Panel ---
+    const createRoomHTML = `
+      <div style="
+          background: rgba(68,68,68,0.9);
+          border-radius: 10px;
+          padding: 20px;
+          width: 320px;
+          text-align: center;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        ">
+        <h2 style="
+            margin: 0 0 15px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+          ">Create Room</h2>
+        <input id="createRoomName" type="text" placeholder="Room Name" style="
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+          ">
+        <input id="createUsername" type="text" placeholder="Username" style="
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+          ">
+        <input id="createPassword" type="password" placeholder="Password" style="
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+          ">
+        <button id="createRoomButton" style="
+            padding: 10px 20px;
+            background: #2d2d2d;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+          ">Create</button>
+      </div>
+    `;
+    const createRoomElement = this.add
+      .dom(this.cameras.main.centerX, 150)
+      .createFromHTML(createRoomHTML);
+
+    // --- Join Room Panel ---
+    const joinRoomHTML = `
+      <div style="
+          background: rgba(68,68,68,0.9);
+          border-radius: 10px;
+          padding: 20px;
+          width: 320px;
+          text-align: center;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        ">
+        <h2 style="
+            margin: 0 0 15px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+          ">Join Room</h2>
+        <input id="joinRoomName" type="text" placeholder="Room Name" style="
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+          ">
+        <input id="joinUsername" type="text" placeholder="Username" style="
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+          ">
+        <input id="joinPassword" type="password" placeholder="Password" style="
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+          ">
+        <button id="joinRoomButton" style="
+            padding: 10px 20px;
+            background: #2d2d2d;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+          ">Join</button>
+      </div>
+    `;
+    const joinRoomElement = this.add
+      .dom(this.cameras.main.centerX, 400)
+      .createFromHTML(joinRoomHTML);
+
+    // --- Event Listeners for Buttons ---
+    // Create Room Button
+    const createRoomButton = createRoomElement.getChildByID("createRoomButton");
+    createRoomButton.addEventListener("click", () => {
+      createRoomButton.disabled = true;
+      const roomName = createRoomElement.getChildByID("createRoomName").value;
+      const username = createRoomElement.getChildByID("createUsername").value;
+      const password = createRoomElement.getChildByID("createPassword").value;
+      if (roomName && username && password) {
+        socket.emit("createRoom", { roomId: roomName, username, password });
+      }
+    });
+
+    // Join Room Button
+    const joinRoomButton = joinRoomElement.getChildByID("joinRoomButton");
+    joinRoomButton.addEventListener("click", () => {
+      joinRoomButton.disabled = true;
+      const roomName = joinRoomElement.getChildByID("joinRoomName").value;
+      const username = joinRoomElement.getChildByID("joinUsername").value;
+      const password = joinRoomElement.getChildByID("joinPassword").value;
+      if (roomName && username && password) {
+        socket.emit("joinRoom", { roomId: roomName, username, password });
+      }
+    });
+
+    // --- Scene Transition Handlers ---
+    const onRoomCreated = ({ roomId }) => {
+      if (this.scene && this.scene.manager) {
+        this.scene.start("bootGame");
+      }
+    };
+    socket.on("roomCreated", onRoomCreated);
+    this.events.once("shutdown", () => {
+      socket.off("roomCreated", onRoomCreated);
+    });
+
+    const onRoomJoined = () => {
+      if (this.scene && this.scene.manager) {
+        this.scene.start("bootGame");
+      }
+    };
+    socket.on("roomJoined", onRoomJoined);
+    this.events.once("shutdown", () => {
+      socket.off("roomJoined", onRoomJoined);
+    });
+
+    const onRoomError = ({ message }) => {
+      alert(message);
+    };
+    socket.on("roomError", onRoomError);
+    this.events.once("shutdown", () => {
+      socket.off("roomError", onRoomError);
+    });
+  }
+}
 
 class Scene1 extends Phaser.Scene {
   constructor() {
@@ -11,7 +196,6 @@ class Scene1 extends Phaser.Scene {
   }
 
   preload() {
-    // Preload assets
     this.load.image("background", "/assets/images/background.png");
     this.load.spritesheet("player", "/assets/spritesheets/player.png", {
       frameWidth: 32,
@@ -47,7 +231,7 @@ class Scene1 extends Phaser.Scene {
       repeat: -1
     });
 
-    // After preloading and setting up animations, start the main game scene.
+    // Move to the main game scene
     this.scene.start("playGame");
   }
 }
@@ -58,12 +242,11 @@ class Scene2 extends Phaser.Scene {
   }
 
   create() {
-    // A container to store all players’ sprites.
-    this.players = {};
-    // Create a physics group for tables.
+    // Containers for remote players and tables
+    this.remotePlayers = {};
     this.tables = this.physics.add.group({ immovable: true });
 
-    // Add a background image.
+    // Background
     this.background = this.add.tileSprite(
       0,
       0,
@@ -73,7 +256,7 @@ class Scene2 extends Phaser.Scene {
     );
     this.background.setOrigin(0, 0);
 
-    // Create the local player sprite.
+    // Local player sprite
     this.player = this.physics.add.sprite(
       this.sys.game.config.width / 2,
       this.sys.game.config.height - 64,
@@ -81,54 +264,101 @@ class Scene2 extends Phaser.Scene {
     );
     this.player.setCollideWorldBounds(true);
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.direction = "down";
+    this.direction = "down"; // default starting direction
 
-    // -------------------------------
-    // Set up all socket event listeners
-    // -------------------------------
+    // Save our socket id
+    this.mySocketId = socket.id;
+    socket.on("connect", () => {
+      this.mySocketId = socket.id;
+    });
 
-    // Listen for the list of current players (including self and others).
+    // --- Room-Specific Socket Listeners ---
     socket.on("currentPlayers", (players) => {
       Object.keys(players).forEach((id) => {
-        if (!this.players[id]) {
-          this.players[id] = this.add.sprite(players[id].x, players[id].y, "player");
+        if (id === this.mySocketId) return;
+        if (!this.remotePlayers[id]) {
+          // Create remote player sprite with a default frame (facing down)
+          this.remotePlayers[id] = this.add.sprite(
+            players[id].x,
+            players[id].y,
+            "player"
+          );
         }
       });
     });
 
-    // When a new player joins, add their sprite.
     socket.on("newPlayer", (playerInfo) => {
-      this.players[playerInfo.id] = this.add.sprite(playerInfo.x, playerInfo.y, "player");
+      if (playerInfo.id === this.mySocketId) return;
+      if (this.remotePlayers[playerInfo.id]) return; // Prevent duplicates
+      this.remotePlayers[playerInfo.id] = this.add.sprite(
+        playerInfo.x,
+        playerInfo.y,
+        "player"
+      );
     });
 
-    // Update a player’s position when they move.
     socket.on("playerMoved", (playerInfo) => {
-      if (this.players[playerInfo.id]) {
-        this.players[playerInfo.id].setPosition(playerInfo.x, playerInfo.y);
+      if (this.remotePlayers[playerInfo.id]) {
+        this.remotePlayers[playerInfo.id].setPosition(playerInfo.x, playerInfo.y);
+        if (playerInfo.isMoving) {
+          // Play the appropriate walking animation
+          switch (playerInfo.direction) {
+            case "left":
+              this.remotePlayers[playerInfo.id].anims.play("walk_left", true);
+              break;
+            case "right":
+              this.remotePlayers[playerInfo.id].anims.play("walk_right", true);
+              break;
+            case "up":
+              this.remotePlayers[playerInfo.id].anims.play("walk_up", true);
+              break;
+            case "down":
+              this.remotePlayers[playerInfo.id].anims.play("walk_down", true);
+              break;
+            default:
+              this.remotePlayers[playerInfo.id].anims.stop();
+              break;
+          }
+        } else {
+          // Stop the animation and set an idle frame
+          this.remotePlayers[playerInfo.id].anims.stop();
+          let idleFrame;
+          switch (playerInfo.direction) {
+            case "left":
+              idleFrame = 8; // first frame for left
+              break;
+            case "right":
+              idleFrame = 4; // first frame for right
+              break;
+            case "up":
+              idleFrame = 12; // first frame for up
+              break;
+            case "down":
+            default:
+              idleFrame = 0; // first frame for down
+              break;
+          }
+          this.remotePlayers[playerInfo.id].setFrame(idleFrame);
+        }
       }
     });
 
-    // Remove a player when they disconnect.
     socket.on("removePlayer", (id) => {
-      if (this.players[id]) {
-        this.players[id].destroy();
-        delete this.players[id];
+      if (this.remotePlayers[id]) {
+        this.remotePlayers[id].destroy();
+        delete this.remotePlayers[id];
       }
     });
 
-    // When a table is placed by any player.
     socket.on("tablePlaced", (tableInfo) => {
       let table = this.tables.create(tableInfo.x, tableInfo.y, "table");
       table.setImmovable(true);
     });
 
-    // -------------------------------
-    // Signal to the server that this player is ready,
-    // sending the starting position.
-    // -------------------------------
-    socket.emit("playerReady", { x: this.player.x, y: this.player.y });
+    // Notify the server this player is ready (not moving initially)
+    socket.emit("playerReady", { x: this.player.x, y: this.player.y, direction: this.direction, isMoving: false });
 
-    // Allow the local player to place a table by clicking/tapping.
+    // Allow placing a table on pointer/tap
     this.input.on("pointerdown", () => this.placeTable(this.player.x, this.player.y));
   }
 
@@ -136,7 +366,6 @@ class Scene2 extends Phaser.Scene {
     this.movePlayerManager();
   }
 
-  // Handles player movement and sends updated positions to the server.
   movePlayerManager() {
     const speed = 100;
     this.player.body.setVelocity(0);
@@ -161,14 +390,13 @@ class Scene2 extends Phaser.Scene {
       this.player.anims.stop();
     }
 
-    // Normalize the velocity so diagonal movement isn't faster.
-    this.player.body.velocity.normalize().scale(speed);
+    // Determine if the player is moving
+    const isMoving = this.cursors.left.isDown || this.cursors.right.isDown || this.cursors.up.isDown || this.cursors.down.isDown;
 
-    // Emit the new position to the server.
-    socket.emit("move", { x: this.player.x, y: this.player.y });
+    // Send updated position, direction, and movement state to the server
+    socket.emit("move", { x: this.player.x, y: this.player.y, direction: this.direction, isMoving });
   }
 
-  // Places a table relative to the player’s current facing direction.
   placeTable(x, y) {
     switch (this.direction) {
       case "left":
@@ -186,8 +414,6 @@ class Scene2 extends Phaser.Scene {
       default:
         break;
     }
-
-    // Create the table locally and emit the event.
     let table = this.tables.create(x, y, "table");
     table.setImmovable(true);
     socket.emit("placeTable", { x, y });
@@ -197,20 +423,18 @@ class Scene2 extends Phaser.Scene {
 const Game = () => {
   useEffect(() => {
     const config = {
-        type: Phaser.AUTO,
-        parent: "game-container",
-        width: window.innerWidth,
-        height: window.innerHeight,
-        antialias: false, // Disable antialiasing if enabled
-        backgroundColor: 0xF08080,
-        physics: { default: "arcade", arcade: { debug: false } },
-        scene: [Scene1, Scene2]
+      type: Phaser.AUTO,
+      parent: "game-container",
+      width: window.innerWidth,
+      height: window.innerHeight,
+      antialias: false,
+      backgroundColor: 0xf08080,
+      physics: { default: "arcade", arcade: { debug: false } },
+      dom: { createContainer: true },
+      scene: [WaitingRoom, Scene1, Scene2]
     };
-    
 
     const game = new Phaser.Game(config);
-
-    // Clean up the game instance on component unmount.
     return () => {
       game.destroy(true);
     };
