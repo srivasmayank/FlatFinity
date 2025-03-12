@@ -1,21 +1,19 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const cors = require("cors");
+// server.js
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import cors from "cors";
 
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// Data structures for rooms, players, and tables
+// Data structures for rooms, players, and tables.
 let rooms = {};
 let players = {};
-let tables = []; // Global table data (consider making it room-specific if needed)
+let tables = [];
 
-/**
- * Helper to remove a socket from any custom room.
- */
 function leaveAllGameRooms(socket) {
   const joinedRooms = [...socket.rooms];
   for (const room of joinedRooms) {
@@ -28,20 +26,19 @@ function leaveAllGameRooms(socket) {
 
 io.on("connection", (socket) => {
   console.log("A player connected:", socket.id);
+  socket.emit("socketId", { socketId: socket.id });
 
-  // --- Create Room ---
   socket.on("createRoom", ({ roomId, username, password }) => {
-    console.log(`Socket ${socket.id} requests to create room '${roomId}' with password '${password}'`);
+    console.log(
+      `Socket ${socket.id} requests to create room '${roomId}' with password '${password}'`
+    );
     leaveAllGameRooms(socket);
-
     if (rooms[roomId]) {
       socket.emit("roomError", { message: "Room already exists" });
-      console.log(`Creation failed: Room '${roomId}' already exists.`);
       return;
     }
     rooms[roomId] = { password, players: {} };
     socket.join(roomId);
-    console.log(`Socket ${socket.id} joined room '${roomId}'.`);
     players[socket.id] = {
       roomId,
       username,
@@ -54,22 +51,20 @@ io.on("connection", (socket) => {
     console.log(`Room '${roomId}' created by socket ${socket.id}.`);
   });
 
-  // --- Join Room ---
   socket.on("joinRoom", ({ roomId, username, password }) => {
-    console.log(`Socket ${socket.id} requests to join room '${roomId}' with password '${password}'`);
+    console.log(
+      `Socket ${socket.id} requests to join room '${roomId}' with password '${password}'`
+    );
     if (!rooms[roomId]) {
       socket.emit("roomError", { message: "Room not found" });
-      console.log(`Join failed: Room '${roomId}' not found.`);
       return;
     }
     if (rooms[roomId].password !== password) {
       socket.emit("roomError", { message: "Incorrect password" });
-      console.log(`Join failed: Incorrect password for room '${roomId}'.`);
       return;
     }
     leaveAllGameRooms(socket);
     socket.join(roomId);
-    console.log(`Socket ${socket.id} joined room '${roomId}'.`);
     players[socket.id] = {
       roomId,
       username,
@@ -79,10 +74,8 @@ io.on("connection", (socket) => {
     };
     rooms[roomId].players[socket.id] = players[socket.id];
     socket.emit("roomJoined", { roomId, players: rooms[roomId].players });
-    console.log(`Socket ${socket.id} successfully joined room '${roomId}'.`);
   });
 
-  // --- Player Ready ---
   socket.on("playerReady", (playerData) => {
     if (players[socket.id]) {
       players[socket.id].x = playerData.x;
@@ -100,10 +93,8 @@ io.on("connection", (socket) => {
     }
     socket.emit("currentPlayers", playersInRoom);
     socket.to(roomId).emit("newPlayer", { id: socket.id, ...players[socket.id] });
-    console.log(`Socket ${socket.id} is ready in room '${roomId}'.`);
   });
 
-  // --- Movement ---
   socket.on("move", (position) => {
     if (players[socket.id]) {
       players[socket.id].x = position.x;
@@ -118,30 +109,60 @@ io.on("connection", (socket) => {
         direction: position.direction,
         isMoving: position.isMoving
       });
-      console.log(`Socket ${socket.id} moved in room '${roomId}' to (${position.x}, ${position.y}) facing ${position.direction}, moving: ${position.isMoving}.`);
     }
   });
 
-  // --- Table Placement ---
   socket.on("placeTable", (tableInfo) => {
     tables.push(tableInfo);
     const roomId = players[socket.id].roomId;
     io.in(roomId).emit("tablePlaced", tableInfo);
-    console.log(`Table placed in room '${roomId}' at (${tableInfo.x}, ${tableInfo.y}) by socket ${socket.id}.`);
   });
 
-  // --- Disconnect ---
-  socket.on("disconnect", () => {
-    console.log("Player disconnected:", socket.id);
+  // Voice signaling events.
+  socket.on("voiceOffer", (data) => {
+    const { target, sdp } = data;
+    socket.to(target).emit("voiceOffer", { caller: socket.id, sdp });
+  });
+  
+  socket.on("voiceAnswer", (data) => {
+    const { target, sdp } = data;
+    socket.to(target).emit("voiceAnswer", { caller: socket.id, sdp });
+  });
+  
+  socket.on("voiceCandidate", (data) => {
+    const { target, candidate } = data;
+    socket.to(target).emit("voiceCandidate", { from: socket.id, candidate });
+  });
+
+  // Acknowledgment method for leaving a room.
+  socket.on("leaveRoom", () => {
+    console.log("check server leave")
     if (players[socket.id]) {
       const roomId = players[socket.id].roomId;
       if (rooms[roomId]) {
         delete rooms[roomId].players[socket.id];
+        io.to(roomId).emit("removePlayer", socket.id);
+        console.log("remove player after leave")
         if (Object.keys(rooms[roomId].players).length === 0) {
-          console.log(`Room '${roomId}' is now empty and will be deleted.`);
           delete rooms[roomId];
         }
-        socket.to(roomId).emit("removePlayer", socket.id);
+      }
+      delete players[socket.id];
+    }
+    // Invoke the acknowledgment callback.
+  
+  });
+
+  socket.on("disconnect", () => {
+    if (players[socket.id]) {
+      const roomId = players[socket.id].roomId;
+      if (rooms[roomId]) {
+        delete rooms[roomId].players[socket.id];
+        io.to(roomId).emit("removePlayer", socket.id);
+        console.log("remove player after disonnect")
+        if (Object.keys(rooms[roomId].players).length === 0) {
+          delete rooms[roomId];
+        }
       }
       delete players[socket.id];
     }
