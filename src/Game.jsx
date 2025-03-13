@@ -10,93 +10,192 @@ class WaitingRoom extends Phaser.Scene {
   constructor() {
     super("waitingRoom");
   }
-
+  
+  preload() {
+    this.load.image("background", "assets/images/background.png"); // Load background image
+  }
+  
   create() {
-    // Manually connect if not connected.
-   
+    // Set background and title
+    this.add.image(0, 0, "background")
+      .setOrigin(0, 0)
+      .setDisplaySize(this.cameras.main.width, this.cameras.main.height);
 
-    // Background and title
-    this.add
-      .rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x1e1e1e)
-      .setOrigin(0, 0);
-    this.add
-      .text(this.cameras.main.centerX, 40, "Multiplayer Phaser Game", {
-        fontSize: "40px",
-        fill: "#ffffff",
-        fontFamily: "Arial",
-        fontStyle: "bold"
-      })
-      .setOrigin(0.5);
+    this.add.text(this.cameras.main.centerX, 40, "Multiplayer Phaser Game", {
+      fontSize: "40px",
+      fill: "#ffffff",
+      fontFamily: "Arial",
+      fontStyle: "bold"
+    }).setOrigin(0.5);
 
-    // --- Create Room Panel ---
-    const createRoomHTML = `
-      <div class="bg-gray-800 bg-opacity-90 rounded-lg p-5 w-80 text-center shadow-lg">
-        <h2 class="text-white text-xl font-sans mb-4">Create Room</h2>
-        <input id="createRoomName" type="text" placeholder="Room Name" 
-          class="w-full p-2 mb-2 rounded-md text-lg border-none outline-none bg-gray-700 text-white placeholder-gray-400" />
-        <input id="createUsername" type="text" placeholder="Username" 
-          class="w-full p-2 mb-2 rounded-md text-lg border-none outline-none bg-gray-700 text-white placeholder-gray-400" />
-        <input id="createPassword" type="password" placeholder="Password" 
-          class="w-full p-2 mb-4 rounded-md text-lg border-none outline-none bg-gray-700 text-white placeholder-gray-400" />
-        <button id="createRoomButton" 
-          class="px-4 py-2 bg-gray-700 text-white rounded-md text-lg cursor-pointer hover:bg-gray-600 transition">
-          Create
-        </button>
+    // Combined tabbed form HTML
+    const tabbedHTML = `
+      <div class="tab-container" style="width: 400px; margin: 0; font-family: Arial;">
+        <!-- Tab Buttons -->
+        <div class="tab-buttons" style="display: flex; justify-content: space-around;">
+          <button id="tab-create" class="rounded-tl-2xl w-full" style="padding: 10px 20px; border: none; background: #2d6476; color: white; cursor: pointer;">Create</button>
+          <button id="tab-join" class="rounded-tr-2xl w-full" style="padding: 10px 20px; border: none; background: #6f0ccf; color: white; cursor: pointer;">Join</button>
+        </div>
+        <!-- Tab Content -->
+        <div class="tab-content">
+          <!-- Create Tab -->
+          <div id="create-tab" class="tab" style="display: block; background: #d4e7ef; padding: 20px;  border: 1px solid #a7ddf5;">
+            <!-- Cartoon Animation Container -->
+            <div class="cartoon" style="margin: 0 auto 20px; width: 200px; height: 200px;">
+              <img src="https://i.ibb.co/98gpLCQ/l1.png" alt="" id="createAnimation1" style="width:100%; height:100%;">
+              <img src="https://i.ibb.co/Vq5j4Vg/l2.png" alt="" id="createAnimation2" style="width:100%; height:100%; display:none;">
+              <img src="https://i.ibb.co/Y0jsj90/l3.png" alt="" id="createAnimation3" style="width:100%; height:100%; display:none;">
+            </div>
+            <h2 style="text-align:center; color: #fff; margin-bottom: 20px;">Create Room</h2>
+            <input id="createRoomName" type="text" placeholder="Room Name" 
+              style="width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border: none; outline: none; background: #f4f4f4; display: block; margin-left: auto; margin-right: auto;"/>
+            <input id="createUsername" type="text" placeholder="Username" 
+              style="width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border: none; outline: none; background: #f4f4f4; display: block; margin-left: auto; margin-right: auto;"/>
+            <input id="createPassword" type="password" placeholder="Password" 
+              style="width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border: none; outline: none; background: #f4f4f4; display: block; margin-left: auto; margin-right: auto;"/>
+            <button id="createRoomButton" 
+              style="width: 100%; padding: 10px; background: #2d6476; color: white; border: none; border-radius: 5px; cursor: pointer;">
+              Create
+            </button>
+          </div>
+          <!-- Join Tab -->
+          <div id="join-tab" class="tab" style="display: none; background: #f3e8ff; padding: 20px; border: 1px solid #d1b3ff;">
+            <!-- Cartoon Animation Container -->
+            <div class="cartoon" style="margin: 0 auto 20px; width: 200px; height: 200px;">
+              <img src="https://i.ibb.co/98gpLCQ/l1.png" alt="" id="joinAnimation1" style="width:100%; height:100%;">
+              <img src="https://i.ibb.co/Vq5j4Vg/l2.png" alt="" id="joinAnimation2" style="width:100%; height:100%; display:none;">
+              <img src="https://i.ibb.co/Y0jsj90/l3.png" alt="" id="joinAnimation3" style="width:100%; height:100%; display:none;">
+            </div>
+            <h2 style="text-align:center; color: #6f0ccf; margin-bottom: 20px;">Join Room</h2>
+            <input id="joinRoomName" type="text" placeholder="Room Name" 
+              style="width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border: none; outline: none; background: #fff; display: block; margin-left: auto; margin-right: auto;"/>
+            <input id="joinUsername" type="text" placeholder="Username" 
+              style="width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border: none; outline: none; background: #fff; display: block; margin-left: auto; margin-right: auto;"/>
+            <input id="joinPassword" type="password" placeholder="Password" 
+              style="width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border: none; outline: none; background: #fff; display: block; margin-left: auto; margin-right: auto;"/>
+            <button id="joinRoomButton" 
+              style="width: 100%; padding: 10px; background: #6f0ccf; color: white; border: none; border-radius: 5px; cursor: pointer;">
+              Join
+            </button>
+          </div>
+        </div>
       </div>
     `;
-    const createRoomElement = this.add
-      .dom(this.cameras.main.centerX, 150)
-      .createFromHTML(createRoomHTML);
-
-    // --- Join Room Panel ---
-    const joinRoomHTML = `
-      <div class="bg-gray-800 bg-opacity-90 rounded-lg p-5 w-80 text-center shadow-lg">
-        <h2 class="text-white text-xl font-sans mb-4">Join Room</h2>
-        <input id="joinRoomName" type="text" placeholder="Room Name" 
-          class="w-full p-2 mb-2 rounded-md text-lg border-none outline-none bg-gray-700 text-white placeholder-gray-400" />
-        <input id="joinUsername" type="text" placeholder="Username" 
-          class="w-full p-2 mb-2 rounded-md text-lg border-none outline-none bg-gray-700 text-white placeholder-gray-400" />
-        <input id="joinPassword" type="password" placeholder="Password" 
-          class="w-full p-2 mb-4 rounded-md text-lg border-none outline-none bg-gray-700 text-white placeholder-gray-400" />
-        <button id="joinRoomButton" 
-          class="px-4 py-2 bg-gray-700 text-white rounded-md text-lg cursor-pointer hover:bg-gray-600 transition">
-          Join
-        </button>
-      </div>
-    `;
-    const joinRoomElement = this.add
-      .dom(this.cameras.main.centerX, 400)
-      .createFromHTML(joinRoomHTML);
-
-    // --- Event Listeners ---
-    const createRoomButton = createRoomElement.getChildByID("createRoomButton");
+    
+    // Create a DOM element with the combined HTML form
+    const tabbedElement = this.add.dom(this.cameras.main.centerX, 400).createFromHTML(tabbedHTML);
+    
+    // --- Tab Switching Functionality ---
+    const tabCreateButton = document.getElementById("tab-create");
+    const tabJoinButton = document.getElementById("tab-join");
+    const createTab = document.getElementById("create-tab");
+    const joinTab = document.getElementById("join-tab");
+    
+    tabCreateButton.addEventListener("click", () => {
+      createTab.style.display = "block";
+      joinTab.style.display = "none";
+      // Update button colors to indicate active tab
+      tabCreateButton.style.background = "#2d6476";
+      tabJoinButton.style.background = "#6f0ccf";
+    });
+    
+    tabJoinButton.addEventListener("click", () => {
+      createTab.style.display = "none";
+      joinTab.style.display = "block";
+      // Update button colors to indicate active tab
+      tabCreateButton.style.background = "#6f0ccf";
+      tabJoinButton.style.background = "#2d6476";
+    });
+    
+    // --- Animation Event Listeners for Create Tab ---
+    const createRoomName = document.getElementById("createRoomName");
+    const createUsername = document.getElementById("createUsername");
+    const createPassword = document.getElementById("createPassword");
+    const createAnimation1 = document.getElementById("createAnimation1");
+    const createAnimation2 = document.getElementById("createAnimation2");
+    const createAnimation3 = document.getElementById("createAnimation3");
+    
+    const createShowDefault = () => {
+      createAnimation1.style.display = "block";
+      createAnimation2.style.display = "none";
+      createAnimation3.style.display = "none";
+    };
+    
+    createRoomName.addEventListener('focus', () => {
+      createAnimation1.style.display = "none";
+      createAnimation3.style.display = "block";
+    });
+    createUsername.addEventListener('focus', () => {
+      createAnimation1.style.display = "none";
+      createAnimation3.style.display = "block";
+    });
+    createPassword.addEventListener('focus', () => {
+      createAnimation1.style.display = "none";
+      createAnimation2.style.display = "block";
+    });
+    
+    createRoomName.addEventListener('blur', createShowDefault);
+    createUsername.addEventListener('blur', createShowDefault);
+    createPassword.addEventListener('blur', createShowDefault);
+    
+    // --- Animation Event Listeners for Join Tab ---
+    const joinRoomName = document.getElementById("joinRoomName");
+    const joinUsername = document.getElementById("joinUsername");
+    const joinPassword = document.getElementById("joinPassword");
+    const joinAnimation1 = document.getElementById("joinAnimation1");
+    const joinAnimation2 = document.getElementById("joinAnimation2");
+    const joinAnimation3 = document.getElementById("joinAnimation3");
+    
+    const joinShowDefault = () => {
+      joinAnimation1.style.display = "block";
+      joinAnimation2.style.display = "none";
+      joinAnimation3.style.display = "none";
+    };
+    
+    joinRoomName.addEventListener('focus', () => {
+      joinAnimation1.style.display = "none";
+      joinAnimation3.style.display = "block";
+    });
+    joinUsername.addEventListener('focus', () => {
+      joinAnimation1.style.display = "none";
+      joinAnimation3.style.display = "block";
+    });
+    joinPassword.addEventListener('focus', () => {
+      joinAnimation1.style.display = "none";
+      joinAnimation2.style.display = "block";
+    });
+    
+    joinRoomName.addEventListener('blur', joinShowDefault);
+    joinUsername.addEventListener('blur', joinShowDefault);
+    joinPassword.addEventListener('blur', joinShowDefault);
+    
+    // --- Form Submission Event Listeners ---
+    const createRoomButton = document.getElementById("createRoomButton");
     createRoomButton.addEventListener("click", () => {
-      // Ensure socket is connected before emitting.
       if (!socket.connected) socket.connect();
       createRoomButton.disabled = true;
-      const roomName = createRoomElement.getChildByID("createRoomName").value;
-      const username = createRoomElement.getChildByID("createUsername").value;
-      const password = createRoomElement.getChildByID("createPassword").value;
+      const roomName = document.getElementById("createRoomName").value;
+      const username = document.getElementById("createUsername").value;
+      const password = document.getElementById("createPassword").value;
       if (roomName && username && password) {
         socket.emit("createRoom", { roomId: roomName, username, password });
         this.scene.start("bootGame", { roomId: roomName });
       }
     });
-
-    const joinRoomButton = joinRoomElement.getChildByID("joinRoomButton");
+    
+    const joinRoomButton = document.getElementById("joinRoomButton");
     joinRoomButton.addEventListener("click", () => {
-      // Ensure socket is connected before emitting.
       if (!socket.connected) socket.connect();
       joinRoomButton.disabled = true;
-      const roomName = joinRoomElement.getChildByID("joinRoomName").value;
-      const username = joinRoomElement.getChildByID("joinUsername").value;
-      const password = joinRoomElement.getChildByID("joinPassword").value;
+      const roomName = document.getElementById("joinRoomName").value;
+      const username = document.getElementById("joinUsername").value;
+      const password = document.getElementById("joinPassword").value;
       if (roomName && username && password) {
         socket.emit("joinRoom", { roomId: roomName, username, password });
         this.scene.start("bootGame", { roomId: roomName });
       }
     });
-
+    
     const onRoomError = ({ message }) => {
       alert(message);
     };
@@ -106,6 +205,8 @@ class WaitingRoom extends Phaser.Scene {
     });
   }
 }
+
+
 
 class Scene1 extends Phaser.Scene {
   constructor() {
@@ -119,6 +220,10 @@ class Scene1 extends Phaser.Scene {
   }
 
   create() {
+    this.add.image(0, 0, "background")
+      .setOrigin(0, 0)
+      .setDisplaySize(this.cameras.main.width, this.cameras.main.height);
+
     this.anims.create({
       key: "walk_down",
       frames: this.anims.generateFrameNumbers("player", { start: 0, end: 3 }),
